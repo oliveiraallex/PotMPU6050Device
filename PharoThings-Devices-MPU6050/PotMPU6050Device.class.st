@@ -1,13 +1,23 @@
 "
-I provide implementation of Gyroscope / Accelerator sensor MPU6050.
+I provide implementation of Gyroscope/Accelerator I2C sensor MPU6050.
 
-The code for initialization and sensors reading is copied from sunfolder example:
-
+The code for initialization and sensors reading is based from example:
 	https://tutorials-raspberrypi.com/measuring-rotation-and-acceleration-raspberry-pi/
 
 Register map:
-
 	https://www.i2cdevlib.com/devices/mpu6050#registers
+
+To use it: 
+sensor := (RpiBoard3B current) installDevice: PotMPU6050Device new.
+or on inspector:
+sensor := board installDevice: PotMPU6050Device new.
+
+API:
+readGyroscope. ""#(1540 -9 -211)""
+readGyroscopeSkaliert. ""#(13.526718 -1.916031 -1.526718)""
+readAccelerometer. ""#(748 -892 15676)""
+readAccelerometerSkaliert. ""#(0.033691 -0.051025 0.974121)""
+readRotationXY. ""#(-3.224775339993247 -2.4755961852044157)""
 "
 Class {
 	#name : #PotMPU6050Device,
@@ -18,6 +28,21 @@ Class {
 { #category : #'instance creation' }
 PotMPU6050Device class >> defaultI2CAddress [
 	^16r68
+]
+
+{ #category : #controlling }
+PotMPU6050Device >> calculateDistanceA: anAccelerometerSkaliertA B: anAccelerometerSkaliertB [
+	^ ((anAccelerometerSkaliertA*anAccelerometerSkaliertA)+(anAccelerometerSkaliertB*anAccelerometerSkaliertB)) sqrt
+]
+
+{ #category : #controlling }
+PotMPU6050Device >> calculateRotationX: anAccelerometerSkaliertX Y: anAccelerometerSkaliertY Z: anAccelerometerSkaliertZ [
+	| radiansX radiansY rotationX rotationY |
+	radiansX := anAccelerometerSkaliertY arcTan: (self calculateDistanceA: anAccelerometerSkaliertX B: anAccelerometerSkaliertZ).
+	radiansY := anAccelerometerSkaliertX arcTan: (self calculateDistanceA: anAccelerometerSkaliertY B: anAccelerometerSkaliertZ).	
+	rotationX := radiansX radiansToDegrees.
+	rotationY := radiansY radiansToDegrees * -1.
+	^ { rotationX . rotationY }
 ]
 
 { #category : #controlling }
@@ -39,10 +64,10 @@ PotMPU6050Device >> readAccelerometer [
 { #category : #controlling }
 PotMPU6050Device >> readAccelerometerSkaliert [
 	| acc accX accY accZ |
-	acc := self readGyroscope.
-	accX := (acc at: 1)/16384 asFloat round: 6.
-	accY := (acc at: 2)/16384 asFloat round: 6.
-	accZ := (acc at: 3)/16384 asFloat round: 6.
+	acc := self readAccelerometer.
+	accX := ((acc at: 1)/16384) asFloat round: 6.
+	accY := ((acc at: 2)/16384) asFloat round: 6.
+	accZ := ((acc at: 3)/16384) asFloat round: 6.
 	^ { accX . accY . accZ }
 ]
 
@@ -81,4 +106,14 @@ PotMPU6050Device >> readRegisters: anHex [
 	l := i2cConnection read8BitsAt: anHex + 1.
 	value := (h bitShift: 8) + l.
 	^ value
+]
+
+{ #category : #controlling }
+PotMPU6050Device >> readRotationXY [
+	| accelerometerSkaliert rotation rotationX rotationY |
+	accelerometerSkaliert := self readAccelerometerSkaliert.
+	rotation := self calculateRotationX: (accelerometerSkaliert at: 1) Y: (accelerometerSkaliert at: 2) Z: (accelerometerSkaliert at: 3).
+	rotationX := rotation at: 1.
+	rotationY := rotation at: 2.
+	^ { rotationX . rotationY }
 ]
