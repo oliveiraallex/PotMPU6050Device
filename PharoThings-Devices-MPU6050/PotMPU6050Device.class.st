@@ -22,9 +22,47 @@ PotMPU6050Device class >> defaultI2CAddress [
 
 { #category : #controlling }
 PotMPU6050Device >> connect [
-	"super connect"
+	super connect
 	
 
+]
+
+{ #category : #controlling }
+PotMPU6050Device >> readAccelerometer [
+	| accX accY accZ |
+	accX := self readRegisters2C: 16r3b.
+	accY := self readRegisters2C: 16r3d.
+	accZ := self readRegisters2C: 16r3f.
+	^ { accX . accY . accZ }
+]
+
+{ #category : #controlling }
+PotMPU6050Device >> readAccelerometerSkaliert [
+	| acc accX accY accZ |
+	acc := self readGyroscope.
+	accX := (acc at: 1)/16384 asFloat round: 6.
+	accY := (acc at: 2)/16384 asFloat round: 6.
+	accZ := (acc at: 3)/16384 asFloat round: 6.
+	^ { accX . accY . accZ }
+]
+
+{ #category : #controlling }
+PotMPU6050Device >> readGyroscope [
+	| gyroX gyroY gyroZ |
+	gyroX := self readRegisters2C: 16r43.
+	gyroY := self readRegisters2C: 16r45.
+	gyroZ := self readRegisters2C: 16r47.
+	^ { gyroX . gyroY . gyroZ }
+]
+
+{ #category : #controlling }
+PotMPU6050Device >> readGyroscopeSkaliert [
+	| gyro gyroX gyroY gyroZ |
+	gyro := self readGyroscope.
+	gyroX := (gyro at: 1)/131 asFloat round: 6.
+	gyroY := (gyro at: 2)/131 asFloat round: 6.
+	gyroZ := (gyro at: 3)/131 asFloat round: 6.
+	^ { gyroX . gyroY . gyroZ }
 ]
 
 { #category : #controlling }
