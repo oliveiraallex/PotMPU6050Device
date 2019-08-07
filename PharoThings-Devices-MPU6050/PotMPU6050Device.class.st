@@ -31,15 +31,15 @@ PotMPU6050Device class >> defaultI2CAddress [
 ]
 
 { #category : #controlling }
-PotMPU6050Device >> calculateDistanceA: anAccelerometerSkaliertA B: anAccelerometerSkaliertB [
-	^ ((anAccelerometerSkaliertA*anAccelerometerSkaliertA)+(anAccelerometerSkaliertB*anAccelerometerSkaliertB)) sqrt
+PotMPU6050Device >> calculateDistanceA: anAccelerometerScaledA B: anAccelerometerScaledB [
+	^ ((anAccelerometerScaledA*anAccelerometerScaledA)+(anAccelerometerScaledB*anAccelerometerScaledB)) sqrt
 ]
 
 { #category : #controlling }
-PotMPU6050Device >> calculateRotationX: anAccelerometerSkaliertX Y: anAccelerometerSkaliertY Z: anAccelerometerSkaliertZ [
+PotMPU6050Device >> calculateRotationX: anAccelerometerScaledX Y: anAccelerometerScaledY Z: anAccelerometerScaledZ [
 	| radiansX radiansY rotationX rotationY |
-	radiansX := anAccelerometerSkaliertY arcTan: (self calculateDistanceA: anAccelerometerSkaliertX B: anAccelerometerSkaliertZ).
-	radiansY := anAccelerometerSkaliertX arcTan: (self calculateDistanceA: anAccelerometerSkaliertY B: anAccelerometerSkaliertZ).	
+	radiansX := anAccelerometerScaledY arcTan: (self calculateDistanceA: anAccelerometerScaledX B: anAccelerometerScaledZ).
+	radiansY := anAccelerometerScaledX arcTan: (self calculateDistanceA: anAccelerometerScaledY B: anAccelerometerScaledZ).	
 	rotationX := radiansX radiansToDegrees.
 	rotationY := radiansY radiansToDegrees * -1.
 	^ { rotationX . rotationY }
@@ -62,7 +62,7 @@ PotMPU6050Device >> readAccelerometer [
 ]
 
 { #category : #controlling }
-PotMPU6050Device >> readAccelerometerSkaliert [
+PotMPU6050Device >> readAccelerometerScaled [
 	| acc accX accY accZ |
 	acc := self readAccelerometer.
 	accX := ((acc at: 1)/16384) asFloat round: 6.
@@ -81,7 +81,7 @@ PotMPU6050Device >> readGyroscope [
 ]
 
 { #category : #controlling }
-PotMPU6050Device >> readGyroscopeSkaliert [
+PotMPU6050Device >> readGyroscopeScaled [
 	| gyro gyroX gyroY gyroZ |
 	gyro := self readGyroscope.
 	gyroX := (gyro at: 1)/131 asFloat round: 6.
@@ -110,9 +110,9 @@ PotMPU6050Device >> readRegisters: anHex [
 
 { #category : #controlling }
 PotMPU6050Device >> readRotationXY [
-	| accelerometerSkaliert rotation rotationX rotationY |
-	accelerometerSkaliert := self readAccelerometerSkaliert.
-	rotation := self calculateRotationX: (accelerometerSkaliert at: 1) Y: (accelerometerSkaliert at: 2) Z: (accelerometerSkaliert at: 3).
+	| accelerometerScaled rotation rotationX rotationY |
+	accelerometerScaled := self readAccelerometerScaled.
+	rotation := self calculateRotationX: (accelerometerScaled at: 1) Y: (accelerometerScaled at: 2) Z: (accelerometerScaled at: 3).
 	rotationX := rotation at: 1.
 	rotationY := rotation at: 2.
 	^ { rotationX . rotationY }
