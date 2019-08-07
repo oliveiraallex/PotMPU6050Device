@@ -47,7 +47,8 @@ PotMPU6050Device >> calculateRotationX: anAccelerometerScaledX Y: anAcceleromete
 
 { #category : #controlling }
 PotMPU6050Device >> connect [
-	super connect
+	super connect.
+	self wakeUpSensor 
 	
 
 ]
@@ -116,4 +117,9 @@ PotMPU6050Device >> readRotationXY [
 	rotationX := rotation at: 1.
 	rotationY := rotation at: 2.
 	^ { rotationX . rotationY }
+]
+
+{ #category : #controlling }
+PotMPU6050Device >> wakeUpSensor [
+	i2cConnection write8BitsAt: 16r6b data: 0
 ]
