@@ -28,7 +28,10 @@ Class {
 	#name : #PotMPU6050Device,
 	#superclass : #PotI2CDevice,
 	#instVars : [
-		'readProcess'
+		'readProcess',
+		'pitch',
+		'roll',
+		'yaw'
 	],
 	#category : #'PharoThings-Devices-MPU6050'
 }
@@ -40,7 +43,8 @@ PotMPU6050Device class >> defaultI2CAddress [
 
 { #category : #controlling }
 PotMPU6050Device >> calculateDistanceA: anAccelerometerScaledA B: anAccelerometerScaledB [
-	^ ((anAccelerometerScaledA*anAccelerometerScaledA)+(anAccelerometerScaledB*anAccelerometerScaledB)) sqrt
+	^ (anAccelerometerScaledA squared + anAccelerometerScaledB squared)
+		sqrt
 ]
 
 { #category : #controlling }
@@ -67,17 +71,42 @@ PotMPU6050Device >> finishRollPitchYaw [
 ]
 
 { #category : #controlling }
+PotMPU6050Device >> monitorRollPitchYaw [
+	| gyroscopeAngles |
+	pitch := 0.
+	roll := 0.
+	yaw := 0.
+	readProcess := [ [ gyroscopeAngles := self readRollPitchYaw.
+	pitch := (pitch + gyroscopeAngles at: 1) round: 2.
+	roll := (roll + gyroscopeAngles at: 2) round: 2.
+	yaw := (yaw + gyroscopeAngles at: 3) round: 2 ] repeat ]
+		forkNamed: 'readProcess'
+]
+
+{ #category : #accessing }
+PotMPU6050Device >> pitch [
+	^ pitch
+]
+
+{ #category : #controlling }
 PotMPU6050Device >> printRollPitchYaw [
-	| gyroscopeAngles pitch roll yaw  lcd |
-	lcd := (RpiBoard3B current) installDevice: PotLCD1602DeviceI2C new.
-	pitch := 0. roll := 0. yaw := 0.
+	| gyroscopeAngles  lcd |
+	lcd := RpiBoard3B current installDevice: PotLCD1602DeviceI2C new.
+	pitch := 0.
+	roll := 0.
+	yaw := 0.
 	readProcess := [ [ gyroscopeAngles := self readRollPitchYaw.
 	pitch := (pitch + gyroscopeAngles at: 1) round: 2.
 	roll := (roll + gyroscopeAngles at: 2) round: 2.
 	yaw := (yaw + gyroscopeAngles at: 3) round: 2.
 	lcd returnHome.
-	lcd showMessage: 'x:', pitch asString,'
-y:', roll asString, ' z:', yaw asString] repeat ] forkNamed: 'readProcess'
+	lcd
+		showMessage:
+			'x:' , pitch asString
+				,
+					'
+y:' , roll asString , ' z:' , yaw asString ] repeat ]
+		forkNamed: 'readProcess'
 ]
 
 { #category : #controlling }
@@ -118,6 +147,11 @@ PotMPU6050Device >> readGyroscopeScaled [
 	^ { gyroX . gyroY . gyroZ }
 ]
 
+{ #category : #accessing }
+PotMPU6050Device >> readProcess [
+	^ readProcess
+]
+
 { #category : #controlling }
 PotMPU6050Device >> readRegisters2C: anHex [
 	| value  |
@@ -142,7 +176,7 @@ PotMPU6050Device >> readRegisters: anHex [
 
 { #category : #controlling }
 PotMPU6050Device >> readRollPitchYaw [
-	| gyroscope pitch roll yaw timer timeStep |
+	| gyroscope timer timeStep |
 	timeStep := 0.01.
 	timer := Time now asMilliSeconds.
 	gyroscope := self readGyroscope.
@@ -157,13 +191,27 @@ PotMPU6050Device >> readRollPitchYaw [
 PotMPU6050Device >> readRotationXY [
 	| accelerometerScaled rotation rotationX rotationY |
 	accelerometerScaled := self readAccelerometerScaled.
-	rotation := self calculateRotationX: (accelerometerScaled at: 1) Y: (accelerometerScaled at: 2) Z: (accelerometerScaled at: 3).
+	rotation := self
+		calculateRotationX: (accelerometerScaled at: 1)
+		Y: (accelerometerScaled at: 2)
+		Z: (accelerometerScaled at: 3).
 	rotationX := rotation at: 1.
 	rotationY := rotation at: 2.
-	^ { rotationX . rotationY }
+	^ {rotationX.
+	rotationY}
+]
+
+{ #category : #accessing }
+PotMPU6050Device >> roll [
+	^ roll
 ]
 
 { #category : #controlling }
 PotMPU6050Device >> wakeUpSensor [
 	i2cConnection write8BitsAt: 16r6b data: 0
+]
+
+{ #category : #accessing }
+PotMPU6050Device >> yaw [
+	^ yaw
 ]
