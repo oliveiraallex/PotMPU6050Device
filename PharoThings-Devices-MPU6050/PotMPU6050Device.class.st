@@ -92,15 +92,15 @@ PotMPU6050Device >> calculateIMUError [
 	gyroZ := 0.
 	checkTimes := 300.
 	checkTimes
-		timesRepeat: [ acc := self readAccelerometerAngleXY.
+		timesRepeat: [ "acc := self readAccelerometerAngleXY.
 			accX := accX + acc at: 1.
-			accY := accY + acc at: 2.
+			accY := accY + acc at: 2."
 			gyro := self getGyroscopeScaled.
 			gyroX := gyroX + gyro at: 1.
 			gyroY := gyroY + gyro at: 2.
 			gyroZ := gyroZ + gyro at: 3 ].
-	accErrorX := accX / checkTimes.
-	accErrorY := accY / checkTimes.
+	"accErrorX := accX / checkTimes.
+	accErrorY := accY / checkTimes."
 	gyroErrorX := gyroX / checkTimes.
 	gyroErrorY := gyroY / checkTimes.
 	gyroErrorZ := gyroZ / checkTimes.
