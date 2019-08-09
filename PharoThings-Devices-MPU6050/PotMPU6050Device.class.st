@@ -2,7 +2,7 @@
 I provide implementation of Gyroscope/Accelerator I2C sensor MPU6050.
 
 The code for initialization and sensors reading is based from example:
-	https://tutorials-raspberrypi.com/measuring-rotation-and-acceleration-raspberry-pi/
+	https://howtomechatronics.com/tutorials/arduino/arduino-and-mpu6050-accelerometer-and-gyroscope-tutorial/
 
 Register map:
 	https://www.i2cdevlib.com/devices/mpu6050#registers
@@ -82,7 +82,7 @@ PotMPU6050Device >> calculateGyroscopeRotationX: anGyroscopeScaledX Y: anGyrosco
 	^ { rotationX . rotationY . rotationZ}
 ]
 
-{ #category : #controlling }
+{ #category : #initialization }
 PotMPU6050Device >> connect [
 	super connect.
 	self initialize.
@@ -158,6 +158,11 @@ PotMPU6050Device >> getRegisters: anHex [
 ]
 
 { #category : #controlling }
+PotMPU6050Device >> getTemperatureRawData [
+	^ self getRegisters2C: 16r41
+]
+
+{ #category : #initialization }
 PotMPU6050Device >> initialize [
 	gyroAngleX := 0.
 	gyroAngleY := 0.
@@ -169,27 +174,9 @@ PotMPU6050Device >> initialize [
 	
 ]
 
-{ #category : #controlling }
+{ #category : #acessing }
 PotMPU6050Device >> pitch [
 	^ pitch
-]
-
-{ #category : #controlling }
-PotMPU6050Device >> printRollPitchYaw [ 
-	| gyro lcd  errX errY errZ|
-	lcd := (RpiBoard3B current) installDevice: PotLCD1602DeviceI2C new.
-	self initialize.
-	gyro := self readGyroscopeAngleXYZ.
-	errX := gyro at:1.
-	errY := gyro at:2.
-	errZ := gyro at:3. 
-	readProcess := [ [ gyro := self readGyroscopeAngleXYZ.
-	pitch := (( gyro at: 1) + (errX * -1) )round: 0.
-	roll := (( gyro at: 2)+ (errY * -1)) round: 0.
-	yaw := (( gyro at: 3) + (errZ * -1))round: 0.
-	lcd returnHome.
-	lcd showMessage: 'R:', pitch asString,'
-P:', roll asString, ' Y:', yaw asString] repeat ] forkNamed: 'readProcess' 
 ]
 
 { #category : #controlling }
@@ -235,8 +222,31 @@ PotMPU6050Device >> readRollPitchYaw [
 ]
 
 { #category : #controlling }
+PotMPU6050Device >> readTemperature [
+	^ self getTemperatureRawData / 340 + 36.53
+]
+
+{ #category : #acessing }
 PotMPU6050Device >> roll [
 	^ roll
+]
+
+{ #category : #controlling }
+PotMPU6050Device >> showRollPitchYaw [ 
+	| gyro lcd  errX errY errZ|
+	lcd := (RpiBoard3B current) installDevice: PotLCD1602DeviceI2C new.
+	self initialize.
+	gyro := self readGyroscopeAngleXYZ.
+	errX := gyro at:1.
+	errY := gyro at:2.
+	errZ := gyro at:3. 
+	readProcess := [ [ gyro := self readGyroscopeAngleXYZ.
+	pitch := (( gyro at: 1) + (errX * -1) )round: 0.
+	roll := (( gyro at: 2)+ (errY * -1)) round: 0.
+	yaw := (( gyro at: 3) + (errZ * -1))round: 0.
+	lcd returnHome.
+	lcd showMessage: 'R:', pitch asString,'
+P:', roll asString, ' Y:', yaw asString] repeat ] forkNamed: 'MPU6050readProcess' 
 ]
 
 { #category : #controlling }
@@ -244,7 +254,7 @@ PotMPU6050Device >> wakeUpSensor [
 	i2cConnection write8BitsAt: 16r6b data: 0
 ]
 
-{ #category : #controlling }
+{ #category : #acessing }
 PotMPU6050Device >> yaw [
 	^ yaw
 ]
