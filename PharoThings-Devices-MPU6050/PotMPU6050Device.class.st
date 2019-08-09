@@ -277,11 +277,11 @@ PotMPU6050Device >> showRollPitchYaw [
 	| gyro lcd  errX errY errZ|
 	lcd := (RpiBoard3B current) installDevice: PotLCD1602DeviceI2C new.
 	self initialize.
-	gyro := self readRollPitchYaw.
+	gyro := self readGyroscopeAngleXYZ.
 	errX := gyro at:1.
 	errY := gyro at:2.
 	errZ := gyro at:3. 
-	readProcess := [ [ gyro := self readRollPitchYaw.
+	readProcess := [ [ gyro := self readGyroscopeAngleXYZ.
 	pitch := (( gyro at: 1) - errX )round: 0.
 	roll := (( gyro at: 2) - errY ) round: 0.
 	yaw := (( gyro at: 3) - errZ )round: 0.
