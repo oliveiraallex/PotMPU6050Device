@@ -1,9 +1,10 @@
 "
 I provide implementation of Gyroscope/Accelerator I2C sensor MPU6050.
 
+Row, Pitch, Yaw:
+https://www.youtube.com/watch?v=pQ24NtnaLl8
 The code for initialization and sensors reading is based from example:
 	https://howtomechatronics.com/tutorials/arduino/arduino-and-mpu6050-accelerometer-and-gyroscope-tutorial/
-
 Register map:
 	https://www.i2cdevlib.com/devices/mpu6050#registers
 
@@ -12,19 +13,14 @@ sensor := (RpiBoard3B current) installDevice: PotMPU6050Device new.
 or on inspector:
 sensor := board installDevice: PotMPU6050Device new.
 
-API:
-readGyroscope. ""#(1540 -9 -211)""
-readGyroscopeSkaliert. ""#(13.526718 -1.916031 -1.526718)""
-readAccelerometer. ""#(748 -892 15676)""
-readAccelerometerSkaliert. ""#(0.033691 -0.051025 0.974121)""
-readRotationXY. ""#(-3.224775339993247 -2.4755961852044157)""
-------
 s := (RpiBoard3B current) installDevice: PotMPU6050DeviceNew new.
-s readAccelerometerAngleXY.
-s readGyroscopeAngleXYZ.
+s readAccelerometerXY.
+s readGyroscopeXYZ.
 s readRollPitchYaw.
-s printRollPitchYaw.
-s finishRollPitchYaw.
+s showAccXY.
+s showGyroXYZ.
+s showRollPitchYaw.
+s finishShowProcess.
 "
 Class {
 	#name : #PotMPU6050Device,
@@ -42,7 +38,7 @@ Class {
 		'roll',
 		'pitch',
 		'yaw',
-		'readProcess'
+		'showProcess'
 	],
 	#category : #'PharoThings-Devices-MPU6050'
 }
@@ -92,31 +88,39 @@ PotMPU6050Device >> calculateIMUError [
 	gyroZ := 0.
 	checkTimes := 300.
 	checkTimes
-		timesRepeat: [ "acc := self readAccelerometerAngleXY.
+		timesRepeat: [ acc := self readAccelerometerXY.
 			accX := accX + acc at: 1.
-			accY := accY + acc at: 2."
+			accY := accY + acc at: 2.
 			gyro := self getGyroscopeScaled.
 			gyroX := gyroX + gyro at: 1.
 			gyroY := gyroY + gyro at: 2.
 			gyroZ := gyroZ + gyro at: 3 ].
-	"accErrorX := accX / checkTimes.
-	accErrorY := accY / checkTimes."
+	accErrorX := accX / checkTimes.
+	accErrorY := accY / checkTimes.
 	gyroErrorX := gyroX / checkTimes.
 	gyroErrorY := gyroY / checkTimes.
 	gyroErrorZ := gyroZ / checkTimes.
 	^ { accErrorX . accErrorY . gyroErrorX . gyroErrorY . gyroErrorZ }
 ]
 
+{ #category : #controlling }
+PotMPU6050Device >> configureDevice [
+	"This method needs to be tested. Don't use it for while"
+	"Talk to the ACCEL_CONFIG register (1C hex) and set the register bits as 00010000 (+/- 8g full scale range)"
+	i2cConnection write8BitsAt: 16r1c data: 16r10.
+	"Talk to the GYRO_CONFIG register (1B hex) and set the register bits as 00010000 (1000deg/s full scale)"
+	i2cConnection write8BitsAt: 16r1b data: 16r10
+]
+
 { #category : #initialization }
 PotMPU6050Device >> connect [
 	super connect.
-	self initialize.
-	self wakeUpSensor
+	self initialize
 ]
 
 { #category : #controlling }
-PotMPU6050Device >> finishRollPitchYaw [ 
-	readProcess terminate
+PotMPU6050Device >> finishShowProcess [ 
+	showProcess terminate
 ]
 
 { #category : #controlling }
@@ -153,9 +157,9 @@ PotMPU6050Device >> getGyroscopeScaled [
 	"For a 250deg/s range we have to divide first the raw value by 131.0, according to the datasheet"
 	| gyro gyroX gyroY gyroZ |
 	gyro := self getGyroscopeRawData.
-	gyroX := (gyro at: 1)/131 asFloat round: 6.
-	gyroY := (gyro at: 2)/131 asFloat round: 6.
-	gyroZ := (gyro at: 3)/131 asFloat round: 6.
+	gyroX := (gyro at: 1)/131 asFloat.
+	gyroY := (gyro at: 2)/131 asFloat.
+	gyroZ := (gyro at: 3)/131 asFloat.
 	^ { gyroX . gyroY . gyroZ }
 ]
 
@@ -196,19 +200,20 @@ PotMPU6050Device >> initialize [
 	pitch := 0.
 	roll := 0.
 	yaw := 0.
-	self calculateIMUError
-	
+	self wakeUpSensor.
+	"self configureDevice."
+	self calculateIMUError.
 ]
 
 { #category : #controlling }
 PotMPU6050Device >> monitorRollPitchYaw [
 	| gyro errX errY errZ |
 	self initialize.
-	gyro := self readGyroscopeAngleXYZ.
+	gyro := self readGyroscopeXYZ.
 	errX := gyro at: 1.
 	errY := gyro at: 2.
 	errZ := gyro at: 3.
-	readProcess := [ [ gyro := self readGyroscopeAngleXYZ.
+	showProcess := [ [ gyro := self readGyroscopeXYZ.
 	pitch := (gyro at: 1) - errX round: 0.
 	roll := (gyro at: 2) - errY round: 0.
 	yaw := (gyro at: 3) - errZ round: 0 ] repeat ]
@@ -221,7 +226,7 @@ PotMPU6050Device >> pitch [
 ]
 
 { #category : #controlling }
-PotMPU6050Device >> readAccelerometerAngleXY [
+PotMPU6050Device >> readAccelerometerXY [
 	| acc accAngle accAngleX accAngleY |
 	acc := self getAccelerometerScaled.
 	accAngle := self calculateAccelerometerRotationX: (acc at:1) Y: (acc at:2) Z: (acc at:3).
@@ -231,11 +236,16 @@ PotMPU6050Device >> readAccelerometerAngleXY [
 ]
 
 { #category : #controlling }
-PotMPU6050Device >> readGyroscopeAngleXYZ [
+PotMPU6050Device >> readErrorCalculation [
+	^ { accErrorX . accErrorY . gyroErrorX . gyroErrorY . gyroErrorZ  }
+]
+
+{ #category : #controlling }
+PotMPU6050Device >> readGyroscopeXYZ [
 	| gyro gyroX gyroY gyroZ gyroAngle|
 	gyro := self getGyroscopeScaled.
 	"Correct the outputs with the calculated error values"
-	gyroX := (gyro at:1) - gyroErrorX. "FIXED. test it... | values hardcoded, need to create methods to correct them auto"
+	gyroX := (gyro at:1) - gyroErrorX. "FIXED. test it..."
 	gyroY := (gyro at:2) - gyroErrorY.
 	gyroZ := (gyro at:3) - gyroErrorZ.
 	gyroAngle := self calculateGyroscopeRotationX: gyroX Y: gyroY Z: gyroZ.
@@ -248,8 +258,8 @@ PotMPU6050Device >> readGyroscopeAngleXYZ [
 { #category : #controlling }
 PotMPU6050Device >> readRollPitchYaw [
 	| acc accX accY gyro gyroX gyroY gyroZ |
-	acc := self readAccelerometerAngleXY.
-	gyro := self readGyroscopeAngleXYZ.
+	acc := self readAccelerometerXY.
+	gyro := self readGyroscopeXYZ.
 	accX := acc at: 1.
 	accY := acc at: 2.
 	gyroX := gyro at: 1.
@@ -273,15 +283,79 @@ PotMPU6050Device >> roll [
 ]
 
 { #category : #controlling }
+PotMPU6050Device >> showAccXY [
+	| acc lcd  errX errY |
+	lcd := (RpiBoard3B current) installDevice: PotLCD1602DeviceI2C new.
+	lcd showMessage: 'Initializing...'.
+	self initialize.
+	lcd clearDisplay.
+	acc := self readAccelerometerXY.
+	errX := acc at:1.
+	errY := acc at:2.
+	showProcess := [ [ acc := self readAccelerometerXY.
+	pitch := (( acc at: 1) - errX )round: 0.
+	roll := (( acc at: 2) - errY ) round: 0.
+	lcd returnHome.
+	lcd showMessage: 'R:', pitch asString,'
+P:', roll asString	] repeat ] forkNamed: 'MPU6050readProcess' 
+]
+
+{ #category : #controlling }
+PotMPU6050Device >> showAccXYGyroXY [
+	| gyro acc lcd errAX errAY errGX errGY pitchA rollA pitchG rollG |
+	lcd := RpiBoard3B current installDevice: PotLCD1602DeviceI2C new.
+	lcd showMessage: 'Initializing...'.
+	self initialize.
+	lcd clearDisplay.
+	acc := self readAccelerometerXY.
+	gyro := self readGyroscopeXYZ.
+	errAX := acc at: 1.
+	errAY := acc at: 2.
+	errGX := gyro at: 1.
+	errGY := gyro at: 2.
+	showProcess := [ [ 
+	acc := self readAccelerometerXY.
+	gyro := self readGyroscopeXYZ.
+	pitchA := (acc at: 1) - errAX round: 0.
+	rollA := (acc at: 2) - errAY round: 0.
+	pitchG := (gyro at: 1) - errGX round: 0.
+	rollG := (gyro at: 2) - errGY round: 0.
+	lcd returnHome.
+	lcd showMessage: 
+	'pG:' , pitchG asString, ' pA:', pitchA asString,'
+rG:' , rollG asString, ' rA:', rollA asString ] repeat ] forkNamed: 'MPU6050readProcess'
+]
+
+{ #category : #controlling }
+PotMPU6050Device >> showGyroXYZ [ 
+	| gyro lcd  errX errY errZ|
+	lcd := (RpiBoard3B current) installDevice: PotLCD1602DeviceI2C new.
+	lcd showMessage: 'Initializing...'.
+	self initialize.
+	lcd clearDisplay.
+	gyro := self readGyroscopeXYZ.
+	errX := gyro at:1.
+	errY := gyro at:2.
+	errZ := gyro at:3. 
+	showProcess := [ [ gyro := self readGyroscopeXYZ.
+	pitch := (( gyro at: 1) - errX )round: 0.
+	roll := (( gyro at: 2) - errY ) round: 0.
+	yaw := (( gyro at: 3) - errZ )round: 0.
+	lcd returnHome.
+	lcd showMessage: 'R:', pitch asString,'
+P:', roll asString, ' Y:', yaw asString	] repeat ] forkNamed: 'MPU6050readProcess' 
+]
+
+{ #category : #controlling }
 PotMPU6050Device >> showRollPitchYaw [ 
 	| gyro lcd  errX errY errZ|
 	lcd := (RpiBoard3B current) installDevice: PotLCD1602DeviceI2C new.
 	self initialize.
-	gyro := self readGyroscopeAngleXYZ.
+	gyro := self readGyroscopeXYZ.
 	errX := gyro at:1.
 	errY := gyro at:2.
 	errZ := gyro at:3. 
-	readProcess := [ [ gyro := self readGyroscopeAngleXYZ.
+	showProcess := [ [ gyro := self readGyroscopeXYZ.
 	pitch := (( gyro at: 1) - errX )round: 0.
 	roll := (( gyro at: 2) - errY ) round: 0.
 	yaw := (( gyro at: 3) - errZ )round: 0.
