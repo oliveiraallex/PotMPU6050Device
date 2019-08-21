@@ -111,11 +111,11 @@ PotMPU6050Device >> combinedRollPitchYaw [
 	accX := acc at: 1.
 	accY := acc at: 2.
 	gyroX := gyro at: 1.
-	gyroY := gyro at: 2.
+	gyroY := (gyro at: 2) * -1.
 	gyroZ := gyro at: 3.
 	"Complementary filter - combine acceleromter and gyro angle values 	"
-	roll := 0.96 * gyroX + 0.04 * accX.
-  	pitch := 0.96 * gyroY + 0.04 * accY.
+	roll := (0.5 * gyroX) + (0.5 * accX).
+  	pitch := (0.5 * gyroY) + (0.5 * accY).
 	yaw :=  gyroZ.
 	^ { roll . pitch . yaw }
 ]
