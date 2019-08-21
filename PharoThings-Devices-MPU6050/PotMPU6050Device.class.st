@@ -104,6 +104,23 @@ PotMPU6050Device >> calculateIMUError [
 ]
 
 { #category : #controlling }
+PotMPU6050Device >> combinedRollPitchYaw [
+	| acc accX accY gyro gyroX gyroY gyroZ |
+	acc := self readAccelerometerXY.
+	gyro := self readGyroscopeXYZ.
+	accX := acc at: 1.
+	accY := acc at: 2.
+	gyroX := gyro at: 1.
+	gyroY := gyro at: 2.
+	gyroZ := gyro at: 3.
+	"Complementary filter - combine acceleromter and gyro angle values 	"
+	roll := 0.96 * gyroX + 0.04 * accX.
+  	pitch := 0.96 * gyroY + 0.04 * accY.
+	yaw :=  gyroZ.
+	^ { roll . pitch . yaw }
+]
+
+{ #category : #controlling }
 PotMPU6050Device >> configureDevice [
 	"This method needs to be tested. Don't use it for while"
 	"Talk to the ACCEL_CONFIG register (1C hex) and set the register bits as 00010000 (+/- 8g full scale range)"
@@ -206,6 +223,21 @@ PotMPU6050Device >> initialize [
 ]
 
 { #category : #controlling }
+PotMPU6050Device >> monitorGyroXYZ [
+	| gyro errX errY errZ |
+	self initialize.
+	gyro := self readGyroscopeXYZ.
+	errX := gyro at: 1.
+	errY := gyro at: 2.
+	errZ := gyro at: 3.
+	showProcess := [ [ gyro := self readGyroscopeXYZ.
+	pitch := ((gyro at: 1) - errX) round: 0.
+	roll := ((gyro at: 2) - errY) round: 0.
+	yaw := ((gyro at: 3) - errZ) round: 0 ] repeat ]
+		forkNamed: 'MPU6050readProcess'
+]
+
+{ #category : #controlling }
 PotMPU6050Device >> monitorRollPitchYaw [
 	| gyro errX errY errZ |
 	self initialize.
@@ -214,9 +246,9 @@ PotMPU6050Device >> monitorRollPitchYaw [
 	errY := gyro at: 2.
 	errZ := gyro at: 3.
 	showProcess := [ [ gyro := self readGyroscopeXYZ.
-	pitch := (gyro at: 1) - errX round: 0.
-	roll := (gyro at: 2) - errY round: 0.
-	yaw := (gyro at: 3) - errZ round: 0 ] repeat ]
+	pitch := ((gyro at: 1) - errX) round: 0.
+	roll := ((gyro at: 2) - errY) round: 0.
+	yaw := ((gyro at: 3) - errZ) round: 0 ] repeat ]
 		forkNamed: 'MPU6050readProcess'
 ]
 
@@ -257,24 +289,19 @@ PotMPU6050Device >> readGyroscopeXYZ [
 
 { #category : #controlling }
 PotMPU6050Device >> readRollPitchYaw [
-	| acc accX accY gyro gyroX gyroY gyroZ |
-	acc := self readAccelerometerXY.
-	gyro := self readGyroscopeXYZ.
-	accX := acc at: 1.
-	accY := acc at: 2.
-	gyroX := gyro at: 1.
-	gyroY := gyro at: 2.
-	gyroZ := gyro at: 3.
-	"Complementary filter - combine acceleromter and gyro angle values 	"
-	roll := 0.96 * gyroX + 0.04 * accX.
-  	pitch := 0.96 * gyroY + 0.04 * accY.
-	yaw :=  gyroZ.
 	^ { roll . pitch . yaw }
 ]
 
 { #category : #controlling }
 PotMPU6050Device >> readTemperature [
 	^ self getTemperatureRawData / 340 + 36.53
+]
+
+{ #category : #initialization }
+PotMPU6050Device >> resetAngles [
+	pitch := 0.
+	roll := 0.
+	yaw := 0
 ]
 
 { #category : #acessing }
@@ -351,11 +378,11 @@ PotMPU6050Device >> showRollPitchYaw [
 	| gyro lcd  errX errY errZ|
 	lcd := (RpiBoard3B current) installDevice: PotLCD1602DeviceI2C new.
 	self initialize.
-	gyro := self readGyroscopeXYZ.
+	gyro := self combinedRollPitchYaw.
 	errX := gyro at:1.
 	errY := gyro at:2.
 	errZ := gyro at:3. 
-	showProcess := [ [ gyro := self readGyroscopeXYZ.
+	showProcess := [ [ gyro := self combinedRollPitchYaw.
 	pitch := (( gyro at: 1) - errX )round: 0.
 	roll := (( gyro at: 2) - errY ) round: 0.
 	yaw := (( gyro at: 3) - errZ )round: 0.
